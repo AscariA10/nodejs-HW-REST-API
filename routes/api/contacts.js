@@ -3,44 +3,16 @@ const { request } = require('../../app');
 
 const router = express.Router();
 
-const contacts = require('../../models/contacts');
+const contactsController = require('../../controllers/contact-controllers');
 
-router.get('/', async (req, res, next) => {
-   const result = await contacts.listContacts();
-   res.json(result);
-});
+router.get('/', contactsController.getAll);
 
-router.get('/:contactId', async (req, res, next) => {
-   const { contactId } = req.params;
-   const result = await contacts.getContactById(contactId);
-   if (!result) {
-      return res.status(404).json({ message: 'contact not found' });
-   }
-   res.json(result);
-});
+router.get('/:contactId', contactsController.getContactById);
 
-router.post('/', async (req, res, next) => {
-   const { name, email, phone } = req.body;
-   const newContact = {
-      name,
-      email,
-      phone,
-   };
-   const result = await contacts.addContact(newContact);
-   res.json(result);
-});
+router.post('/', contactsController.addNewContact);
 
-router.delete('/:contactId', async (req, res, next) => {
-   const { contactId } = req.params;
-   const result = await contacts.removeContact(contactId);
-   res.json({ message: `${contactId} was deleted` });
-});
+router.put('/:contactId', contactsController.updateContact);
 
-router.put('/:contactId', async (req, res, next) => {
-   const { contactId } = req.params;
-   const { name, email, phone } = req.body;
-   const result = await contacts.updateContact(contactId, { name, email, phone });
-   res.json({ status: 'success', code: 200, data: { result } });
-});
+router.delete('/:contactId', contactsController.deleteContact);
 
 module.exports = router;
