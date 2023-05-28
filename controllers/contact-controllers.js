@@ -13,7 +13,8 @@ const addSchema = Joi.object({
 });
 
 async function getAll(req, res, next) {
-   const result = await Contact.find();
+   const { _id: owner } = req.user;
+   const result = await Contact.find({ owner }).populate('owner');
    if (!result) {
       throw HttpError(404, 'Not found');
    }
@@ -31,6 +32,7 @@ async function getContactById(req, res, next) {
 
 async function addNewContact(req, res, next) {
    const { name, email, phone, favorite } = req.body;
+   const { _id: owner } = req.user;
    const newContact = {
       name,
       email,
@@ -41,7 +43,7 @@ async function addNewContact(req, res, next) {
    if (error) {
       throw HttpError(400, error.message);
    }
-   const result = await Contact.create(newContact);
+   const result = await Contact.create({ ...newContact, owner });
    res.status(201).json(result);
 }
 

@@ -62,10 +62,27 @@ async function login(req, res) {
    const payload = { id: user._id };
 
    const token = jwt.sign(payload, SECRET_KEY, { expiresIn: '23h' });
+
+   await User.findByIdAndUpdate(user._id, { token });
    res.json({ token });
+}
+
+async function current(req, res) {
+   const { email } = req.user;
+
+   res.json({ email });
+}
+
+async function logout(req, res) {
+   const { _id } = req.user;
+   await User.findByIdAndUpdate(_id, { token: '' });
+
+   res.json({ message: 'googBye' });
 }
 
 module.exports = {
    register: controllerWrapper(register),
    login: controllerWrapper(login),
+   current: controllerWrapper(current),
+   logout: controllerWrapper(logout),
 };
