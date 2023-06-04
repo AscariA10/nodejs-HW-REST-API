@@ -1,6 +1,12 @@
 const Joi = require('joi');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const fs = require('fs/promises');
+const path = require('path');
+const Jimp = require('jimp');
+
+const gravatar = require('gravatar');
+
 require('dotenv').config();
 
 const { SECRET_KEY } = process.env;
@@ -37,7 +43,13 @@ async function register(req, res) {
 
    const hashPassword = await bcrypt.hash(password, 10);
 
-   const newUser = await User.create({ ...req.body, password: hashPassword });
+   const baseImgURL = await gravatar.profile_url(email, { protocol: 'http', format: 'jpeg' });
+
+   const newUser = await User.create({
+      ...req.body,
+      password: hashPassword,
+      avatarURL: baseImgURL,
+   });
 
    res.status(201).json({
       email: newUser.email,
@@ -80,9 +92,36 @@ async function logout(req, res) {
    res.json({ message: 'googBye' });
 }
 
+async function changeAvatar(req, res) {
+   const { email } = req.body;
+   const user = await User.findOne({ email });
+
+   if (!user) {
+      throw HttpError(401, 'email or password incorrect');
+   }
+
+   const { path: tempUpload, originalname } = req.file;
+
+   const userAvatarStorage = path.join(__dirname, '../public/avatars');
+
+   Jimp.read(userAvatarStorage, (err, userAvatarStorage) => {
+      if (err) throw err;
+      userAvatarStorage
+         .resize(256, 256) // resize
+         .write(`${userAvatarStorage}__${user}.jpeg`); // save
+   });
+
+   resultUpload = path.join(userAvatarStorage, originalname);
+
+   await fs.rename(tempUpload, resultUpload);
+
+   res.json({ message: user.avatarURL });
+}
+
 module.exports = {
    register: controllerWrapper(register),
    login: controllerWrapper(login),
    current: controllerWrapper(current),
    logout: controllerWrapper(logout),
+   changeAvatar: controllerWrapper(changeAvatar),
 };
