@@ -16,6 +16,8 @@ const User = require('../models/user');
 const HttpError = require('../helpers/HttpError');
 const controllerWrapper = require('../helpers/decorators');
 
+const avatarsDir = path.join(__dirname, '../', 'public', 'avatars');
+
 const registerSchema = Joi.object({
    email: Joi.string().required(),
    password: Joi.string().required(),
@@ -93,29 +95,16 @@ async function logout(req, res) {
 }
 
 async function changeAvatar(req, res) {
-   const { email } = req.body;
-   const user = await User.findOne({ email });
-
-   if (!user) {
-      throw HttpError(401, 'email or password incorrect');
-   }
-
+   const { _id } = req.user;
+   console.log(req.file);
    const { path: tempUpload, originalname } = req.file;
-
-   const userAvatarStorage = path.join(__dirname, '../public/avatars');
-
-   Jimp.read(userAvatarStorage, (err, userAvatarStorage) => {
-      if (err) throw err;
-      userAvatarStorage
-         .resize(256, 256) // resize
-         .write(`${userAvatarStorage}__${user}.jpeg`); // save
-   });
-
-   resultUpload = path.join(userAvatarStorage, originalname);
-
+   const filename = `${_id}_${originalname}`;
+   const resultUpload = path.join(avatarsDir, filename);
    await fs.rename(tempUpload, resultUpload);
+   const avatarURL = path.join('avatars', filename);
+   await User.findByIdAndUpdate(_id, { avatarURL });
 
-   res.json({ message: user.avatarURL });
+   res.json({ avatarURL });
 }
 
 module.exports = {
