@@ -96,8 +96,11 @@ async function logout(req, res) {
 
 async function changeAvatar(req, res) {
    const { _id } = req.user;
-   console.log(req.file);
+
    const { path: tempUpload, originalname } = req.file;
+
+   await Jimp.read(tempUpload).then(image => image.resize(250, 250).writeAsync(tempUpload));
+
    const filename = `${_id}_${originalname}`;
    const resultUpload = path.join(avatarsDir, filename);
    await fs.rename(tempUpload, resultUpload);
