@@ -1,6 +1,12 @@
 const Joi = require('joi');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const fs = require('fs/promises');
+const path = require('path');
+const Jimp = require('jimp');
+
+const gravatar = require('gravatar');
+
 require('dotenv').config();
 
 const { SECRET_KEY } = process.env;
@@ -9,6 +15,8 @@ const User = require('../models/user');
 
 const HttpError = require('../helpers/HttpError');
 const controllerWrapper = require('../helpers/decorators');
+
+const avatarsDir = path.join(__dirname, '../', 'public', 'avatars');
 
 const registerSchema = Joi.object({
    email: Joi.string().required(),
@@ -37,7 +45,13 @@ async function register(req, res) {
 
    const hashPassword = await bcrypt.hash(password, 10);
 
-   const newUser = await User.create({ ...req.body, password: hashPassword });
+   const baseImgURL = await gravatar.profile_url(email, { protocol: 'http', format: 'jpeg' });
+
+   const newUser = await User.create({
+      ...req.body,
+      password: hashPassword,
+      avatarURL: baseImgURL,
+   });
 
    res.status(201).json({
       email: newUser.email,
@@ -80,9 +94,26 @@ async function logout(req, res) {
    res.json({ message: 'googBye' });
 }
 
+async function changeAvatar(req, res) {
+   const { _id } = req.user;
+
+   const { path: tempUpload, originalname } = req.file;
+
+   await Jimp.read(tempUpload).then(image => image.resize(250, 250).writeAsync(tempUpload));
+
+   const filename = `${_id}_${originalname}`;
+   const resultUpload = path.join(avatarsDir, filename);
+   await fs.rename(tempUpload, resultUpload);
+   const avatarURL = path.join('avatars', filename);
+   await User.findByIdAndUpdate(_id, { avatarURL });
+
+   res.json({ avatarURL });
+}
+
 module.exports = {
    register: controllerWrapper(register),
    login: controllerWrapper(login),
    current: controllerWrapper(current),
    logout: controllerWrapper(logout),
+   changeAvatar: controllerWrapper(changeAvatar),
 };
