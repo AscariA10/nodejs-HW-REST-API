@@ -18,6 +18,6 @@ router.get('/current', authenticate, authController.current);
 
 router.post('/logout', authenticate, authController.logout);
 
-router.patch('/avatar', authenticate, upload.single('avatar'), authController.changeAvatar);
+router.patch('/avatars', authenticate, upload.single('avatar'), authController.changeAvatar);
 
 module.exports = router;
