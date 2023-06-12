@@ -62,8 +62,10 @@ async function register(req, res) {
       verificationToken,
    });
 
+   console.log(email);
+
    const verifyEmail = {
-      sendTo: email,
+      to: email,
       subject: 'verify email',
       html: `<a target="_blank" href="${PROJECT_URL}/api/user/verify/${verificationToken}">Verify Email</a> `,
    };
@@ -104,7 +106,7 @@ async function resendVerify(req, res) {
    }
 
    const verifyEmail = {
-      sendTo: email,
+      to: email,
       subject: 'verify email',
       html: `<a target="_blank" href="${PROJECT_URL}/api/user/verify/${verificationToken}">Verify Email</a> `,
    };
