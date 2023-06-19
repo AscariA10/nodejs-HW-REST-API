@@ -4,16 +4,18 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs/promises');
 const path = require('path');
 const Jimp = require('jimp');
+const { nanoid } = require('nanoid');
 
 const gravatar = require('gravatar');
 
 require('dotenv').config();
 
-const { SECRET_KEY } = process.env;
+const { SECRET_KEY, PROJECT_URL } = process.env;
 
 const User = require('../models/user');
 
 const HttpError = require('../helpers/HttpError');
+const sendEmail = require('../helpers/sendEmail');
 const controllerWrapper = require('../helpers/decorators');
 
 const avatarsDir = path.join(__dirname, '../', 'public', 'avatars');
@@ -27,6 +29,10 @@ const registerSchema = Joi.object({
 const loginSchema = Joi.object({
    email: Joi.string().required(),
    password: Joi.string().required(),
+});
+
+const emailSchema = Joi.object({
+   email: Joi.string().required(),
 });
 
 async function register(req, res) {
@@ -45,13 +51,26 @@ async function register(req, res) {
 
    const hashPassword = await bcrypt.hash(password, 10);
 
+   const verificationToken = nanoid();
+
    const baseImgURL = await gravatar.profile_url(email, { protocol: 'http', format: 'jpeg' });
 
    const newUser = await User.create({
       ...req.body,
       password: hashPassword,
       avatarURL: baseImgURL,
+      verificationToken,
    });
+
+   console.log(email);
+
+   const verifyEmail = {
+      to: email,
+      subject: 'verify email',
+      html: `<a target="_blank" href="${PROJECT_URL}/api/user/verify/${verificationToken}">Verify Email</a> `,
+   };
+
+   await sendEmail(verifyEmail);
 
    res.status(201).json({
       email: newUser.email,
@@ -59,11 +78,51 @@ async function register(req, res) {
    });
 }
 
+async function verify(req, res) {
+   const { verificationToken } = req.params;
+   const user = await User.findOne({ verificationToken });
+   console.log(verificationToken);
+   if (!user) {
+      throw HttpError(404);
+   }
+   await User.findByIdAndUpdate(user._id, { verify: true, verificationToken: null });
+   res.json({ message: 'verify successfully' });
+}
+
+async function resendVerify(req, res) {
+   const { email } = req.body;
+   const { error } = emailSchema.validate(req.body);
+   const user = await User.findOne({ email });
+
+   if (error) {
+      throw HttpError(400, 'missing required field email');
+   }
+
+   if (!user) {
+      throw HttpError(404);
+   }
+   if (user.verify) {
+      throw HttpError(400, 'email verified');
+   }
+
+   const verifyEmail = {
+      to: email,
+      subject: 'verify email',
+      html: `<a target="_blank" href="${PROJECT_URL}/api/user/verify/${verificationToken}">Verify Email</a> `,
+   };
+
+   await sendEmail(verifyEmail);
+
+   res.json({
+      message: 'Verify email send',
+   });
+}
+
 async function login(req, res) {
    const { email, password } = req.body;
    const user = await User.findOne({ email });
 
-   if (!user) {
+   if (!user || !user.verify) {
       throw HttpError(401, 'email or password incorrect');
    }
 
@@ -112,6 +171,8 @@ async function changeAvatar(req, res) {
 
 module.exports = {
    register: controllerWrapper(register),
+   verify: controllerWrapper(verify),
+   resendVerify: controllerWrapper(resendVerify),
    login: controllerWrapper(login),
    current: controllerWrapper(current),
    logout: controllerWrapper(logout),
